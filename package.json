@@ -1,0 +1,17 @@
+{
+  "name": "drupal-pre-committer",
+  "version": "1.0.0",
+  "description": "The drupal-pre-committer package that allows you to setup git pre-commit hooks in any Drupal project using husky npm package and provides the basic config/ignore files templates for different linters.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "drupal",
+    "pre-commit",
+    "drupal-pre-commit",
+    "git"
+  ],
+  "author": "Mahesh Sankhala",
+  "license": "ISC"
+}
