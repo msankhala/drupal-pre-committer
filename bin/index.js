@@ -49,7 +49,7 @@ const LINTERS = [
     name: "Secretlint",
     value: "secretlint",
     type: "npm",
-    deps: ["secretlint", "@secretlint/cli", "@secretlint/config-recommended"],
+    deps: ["secretlint", "@secretlint/secretlint-rule-preset-recommend"],
     config: "secretlintrc.json",
     ignore: ".secretlintignore"
   },
@@ -57,7 +57,7 @@ const LINTERS = [
     name: "Prettier",
     value: "prettier",
     type: "npm",
-    deps: ["prettier"],
+    deps: ["prettier", "prettier-eslint"],
     config: "prettierrc.js",
     ignore: ".prettierignore"
   },
@@ -65,7 +65,17 @@ const LINTERS = [
     name: "ESLint (JavaScript/TypeScript)",
     value: "eslint",
     type: "npm",
-    deps: ["eslint", "eslint-config-prettier", "eslint-plugin-prettier"],
+    deps: [
+      "eslint",
+      "eslint-config-airbnb-base",
+      "eslint-config-airbnb",
+      "eslint-config-jquery",
+      "eslint-plugin-import",
+      "eslint-plugin-jquery",
+      "eslint-plugin-yml",
+      // "eslint-config-prettier",
+      // "eslint-plugin-prettier"
+    ],
     config: "eslint.config.js",
     ignore: ".eslintignore"
   },
@@ -77,8 +87,8 @@ const LINTERS = [
       "stylelint",
       "stylelint-config-standard",
       "stylelint-config-recommended-scss",
-      "stylelint-config-prettier",
-      "stylelint-config-drupal",
+      // "stylelint-config-prettier",
+      // "stylelint-config-drupal",
       "stylelint-scss"
     ],
     config: "stylelint.config.js",
@@ -219,7 +229,7 @@ async function main() {
   if (composerDeps.length) {
     const spinner = ora("Installing composer dependencies...").start();
     try {
-      execSync(`composer require --dev ${composerDeps.join(" ")}`, { cwd: repoPath, stdio: "ignore" });
+      execSync(`composer config allow-plugins.dealerdirect/phpcodesniffer-composer-installer true && composer require --dev --no-interaction ${composerDeps.join(" ")}`, { cwd: repoPath, stdio: "inherit" });
       spinner.succeed(chalk.green("Composer dependencies installed successfully."));
     } catch (err) {
       spinner.fail(chalk.red("Failed to install composer dependencies."));
@@ -267,15 +277,15 @@ async function main() {
   }
 
   // 7. Setup Husky and lint-staged
+  const spinner = ora("Setting up Husky hooks...").start();
   try {
-    const spinner = ora("Setting up Husky hooks...").start();
-    execSync("npx husky install", { cwd: repoPath, stdio: "ignore" });
+    execSync("npx husky init", { cwd: repoPath, stdio: "inherit" });
     // Add pre-commit hook for lint-staged
-    execSync('npx husky add .husky/pre-commit "npx lint-staged"', { cwd: repoPath, stdio: "ignore" });
+    execSync('echo "npx validate-branch-name \nnpx lint-staged" > .husky/pre-commit', { cwd: repoPath, stdio: "inherit" });
     // Add prepare-commit-msg hook for jira-prepare-commit-msg
-    execSync('npx husky add .husky/prepare-commit-msg "npx jira-prepare-commit-msg"', { cwd: repoPath, stdio: "ignore" });
+    execSync('echo "npx jira-prepare-commit-msg" > .husky/prepare-commit-msg', { cwd: repoPath, stdio: "inherit" });
     // Add pre-push hook for validate-branch-name
-    execSync('npx husky add .husky/pre-push "npx validate-branch-name"', { cwd: repoPath, stdio: "ignore" });
+    // execSync('npx husky add .husky/pre-push "npx validate-branch-name"', { cwd: repoPath, stdio: "inherit" });
     spinner.succeed(chalk.green("Husky hooks set up successfully."));
   } catch (err) {
     console.error(chalk.red("Failed to set up Husky hooks."));
@@ -285,7 +295,7 @@ async function main() {
     spinner.stop();
   }
 
-  console.log(chalk.bold.cyan("\nPre-commit linter configuration complete!"));
+  // console.log(chalk.bold.cyan("\nPre-commit linter configuration complete!"));
 }
 
 main();
