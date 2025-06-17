@@ -150,6 +150,30 @@ function safeResolveRepoPath(inputPath) {
   return resolved;
 }
 
+// Helper to backup existing file with incrementing counter
+async function backupAndPromptOverwrite(dest, inquirer, chalk) {
+  if (!fs.existsSync(dest)) return true;
+  const { overwrite } = await inquirer.prompt([
+    {
+      type: "confirm",
+      name: "overwrite",
+      message: chalk.yellow(`${path.basename(dest)} already exists. Overwrite?`),
+      default: false
+    }
+  ]);
+  if (!overwrite) return false;
+  // Find backup filename
+  let counter = 1;
+  let backupName;
+  do {
+    backupName = `${dest}-backup-${counter}`;
+    counter++;
+  } while (fs.existsSync(backupName));
+  fs.renameSync(dest, backupName);
+  console.log(chalk.yellow(`Existing file backed up as ${path.basename(backupName)}`));
+  return true;
+}
+
 async function main() {
   // 1. Ask for repo root path
   const { repoPath: userInputPath } = await inquirer.prompt([
@@ -249,8 +273,11 @@ async function main() {
         configSrc.startsWith(TEMPLATE_DIR) &&
         fs.existsSync(configSrc)
       ) {
-        fs.copyFileSync(configSrc, configDest);
-        console.log(chalk.green(`✔ Copied ${linter.config} to repo root.`));
+        const shouldWrite = await backupAndPromptOverwrite(configDest, inquirer, chalk);
+        if (shouldWrite) {
+          fs.copyFileSync(configSrc, configDest);
+          console.log(chalk.green(`✔ Copied ${linter.config} to repo root.`));
+        }
       }
     }
     if (linter.ignore) {
@@ -260,8 +287,11 @@ async function main() {
         ignoreSrc.startsWith(TEMPLATE_DIR) &&
         fs.existsSync(ignoreSrc)
       ) {
-        fs.copyFileSync(ignoreSrc, ignoreDest);
-        console.log(chalk.green(`✔ Copied ${linter.ignore} to repo root.`));
+        const shouldWrite = await backupAndPromptOverwrite(ignoreDest, inquirer, chalk);
+        if (shouldWrite) {
+          fs.copyFileSync(ignoreSrc, ignoreDest);
+          console.log(chalk.green(`✔ Copied ${linter.ignore} to repo root.`));
+        }
       }
     }
   }
@@ -271,8 +301,11 @@ async function main() {
     const src = path.join(TEMPLATE_DIR, extra.src);
     const dest = path.join(repoPath, extra.dest);
     if (fs.existsSync(src)) {
-      fs.copyFileSync(src, dest);
-      console.log(chalk.green(`✔ Copied ${extra.dest} to repo root.`));
+      const shouldWrite = await backupAndPromptOverwrite(dest, inquirer, chalk);
+      if (shouldWrite) {
+        fs.copyFileSync(src, dest);
+        console.log(chalk.green(`✔ Copied ${extra.dest} to repo root.`));
+      }
     }
   }
 
