@@ -6,11 +6,7 @@
 
 ## 📦 Installation
 
-You can use this package via `npx` without installing it globally or you can install it as a dev dependency in your Drupal project:
-
-```bash
-npm install --save-dev @msankhala/drupal-pre-committer
-```
+You can use this package via `npx` without installing it.
 
 ### ⚙️ Usage
 
@@ -20,12 +16,14 @@ Run the CLI:
 npx drupal-pre-committer config
 ```
 
-Select the tools you want to install from the list:
+Select the linting tools you want to install from the list:
 
-1. ESLint
-1. Prettier
-1. Stylelint
 1. Secretlint
+1. ESLint
+1. Stylelint
+1. Prettier
+1. Twig CS Fixer
+1. PhpCodeSniffer
 1. Twig CS Fixer
 
 **The CLI will:**
@@ -35,10 +33,12 @@ Select the tools you want to install from the list:
 
 ## 🛠️ Supported Tools
 
-1. ESLint
-1. Prettier
-1. Stylelint
 1. Secretlint
+1. ESLint
+1. Stylelint
+1. Prettier
+1. Twig CS Fixer
+1. PhpCodeSniffer
 1. Twig CS Fixer
 
 ## 📁 Configuration Files
