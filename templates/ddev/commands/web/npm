@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+## Description: Run npm commands in the web container.
+## Usage: npm [npm command]
+## Example: "ddev npm lint-staged" or "ddev npm install"
+
+npm "$@"

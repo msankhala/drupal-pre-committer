@@ -150,8 +150,8 @@ function safeResolveRepoPath(inputPath) {
   return resolved;
 }
 
-// Helper to backup existing file with incrementing counter
-async function backupAndPromptOverwrite(dest, inquirer, chalk) {
+// Helper to prompt for overwrite if file exists
+async function promptOverwrite(dest, inquirer, chalk) {
   if (!fs.existsSync(dest)) return true;
   const { overwrite } = await inquirer.prompt([
     {
@@ -161,17 +161,46 @@ async function backupAndPromptOverwrite(dest, inquirer, chalk) {
       default: false
     }
   ]);
-  if (!overwrite) return false;
-  // Find backup filename
-  let counter = 1;
-  let backupName;
-  do {
-    backupName = `${dest}-backup-${counter}`;
-    counter++;
-  } while (fs.existsSync(backupName));
-  fs.renameSync(dest, backupName);
-  console.log(chalk.yellow(`Existing file backed up as ${path.basename(backupName)}`));
-  return true;
+  return overwrite;
+}
+
+// Helper to get installed npm package version in the target repo
+function getNpmPackageVersion(pkgName, repoPath) {
+  try {
+    const pkgJsonPath = path.join(repoPath, "node_modules", pkgName, "package.json");
+    if (fs.existsSync(pkgJsonPath)) {
+      const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8"));
+      return pkgJson.version;
+    }
+  } catch (e) {}
+  return null;
+}
+
+// Generic helper to copy config/ignore files based on version constraint
+async function copyConfigByVersion({
+  repoPath,
+  inquirer,
+  chalk,
+  packageName,
+  versionConstraint,
+  modernFiles = [],
+  legacyFiles = []
+}) {
+  const version = getNpmPackageVersion(packageName, repoPath);
+  let major = 0;
+  if (version) major = parseInt(version.split(".")[0], 10);
+  const filesToCopy = major >= versionConstraint ? modernFiles : legacyFiles;
+  for (const { src, dest } of filesToCopy) {
+    const configSrc = path.join(TEMPLATE_DIR, src);
+    const configDest = path.join(repoPath, dest);
+    if (fs.existsSync(configSrc)) {
+      const shouldWrite = await promptOverwrite(configDest, inquirer, chalk);
+      if (shouldWrite) {
+        fs.copyFileSync(configSrc, configDest);
+        console.log(chalk.green(`✔ Copied ${dest} to repo root.`));
+      }
+    }
+  }
 }
 
 async function main() {
@@ -266,6 +295,43 @@ async function main() {
 
   // 5. Copy config and ignore files for selected linters
   for (const linter of LINTERS.filter(l => linters.includes(l.value))) {
+    // ESLint
+    if (linter.value === "eslint") {
+      await copyConfigByVersion({
+        repoPath,
+        inquirer,
+        chalk,
+        packageName: "eslint",
+        versionConstraint: 9,
+        modernFiles: [
+          { src: "eslint.config.js", dest: "eslint.config.js" }
+        ],
+        legacyFiles: [
+          { src: ".eslintrc.js", dest: ".eslintrc.js" },
+          { src: ".eslintignore", dest: ".eslintignore" }
+        ]
+      });
+      continue;
+    }
+    // Stylelint
+    if (linter.value === "stylelint") {
+      await copyConfigByVersion({
+        repoPath,
+        inquirer,
+        chalk,
+        packageName: "stylelint",
+        versionConstraint: 7,
+        modernFiles: [
+          { src: "stylelint.config.js", dest: "stylelint.config.js" }
+        ],
+        legacyFiles: [
+          { src: ".stylelintrc.js", dest: ".stylelintrc.js" },
+          { src: ".stylelintignore", dest: ".stylelintignore" }
+        ]
+      });
+      continue;
+    }
+    // General case for other linters
     if (linter.config) {
       const configSrc = path.join(TEMPLATE_DIR, linter.config);
       const configDest = path.join(repoPath, linter.config.startsWith(".") ? linter.config : `.${linter.config}`);
@@ -273,7 +339,7 @@ async function main() {
         configSrc.startsWith(TEMPLATE_DIR) &&
         fs.existsSync(configSrc)
       ) {
-        const shouldWrite = await backupAndPromptOverwrite(configDest, inquirer, chalk);
+        const shouldWrite = await promptOverwrite(configDest, inquirer, chalk);
         if (shouldWrite) {
           fs.copyFileSync(configSrc, configDest);
           console.log(chalk.green(`✔ Copied ${linter.config} to repo root.`));
@@ -287,7 +353,7 @@ async function main() {
         ignoreSrc.startsWith(TEMPLATE_DIR) &&
         fs.existsSync(ignoreSrc)
       ) {
-        const shouldWrite = await backupAndPromptOverwrite(ignoreDest, inquirer, chalk);
+        const shouldWrite = await promptOverwrite(ignoreDest, inquirer, chalk);
         if (shouldWrite) {
           fs.copyFileSync(ignoreSrc, ignoreDest);
           console.log(chalk.green(`✔ Copied ${linter.ignore} to repo root.`));
@@ -298,10 +364,27 @@ async function main() {
 
   // 6. Copy extra config files
   for (const extra of EXTRA_CONFIGS) {
+    // Special handling for lint-staged
+    if (extra.src === ".lintstagedrc.js" || extra.src === "lint-staged.config.js") {
+      await copyConfigByVersion({
+        repoPath,
+        inquirer,
+        chalk,
+        packageName: "lint-staged",
+        versionConstraint: 10,
+        modernFiles: [
+          { src: "lint-staged.config.js", dest: "lint-staged.config.js" }
+        ],
+        legacyFiles: [
+          { src: ".lintstagedrc.js", dest: ".lintstagedrc.js" }
+        ]
+      });
+      continue;
+    }
     const src = path.join(TEMPLATE_DIR, extra.src);
     const dest = path.join(repoPath, extra.dest);
     if (fs.existsSync(src)) {
-      const shouldWrite = await backupAndPromptOverwrite(dest, inquirer, chalk);
+      const shouldWrite = await promptOverwrite(dest, inquirer, chalk);
       if (shouldWrite) {
         fs.copyFileSync(src, dest);
         console.log(chalk.green(`✔ Copied ${extra.dest} to repo root.`));
